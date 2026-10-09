@@ -141,7 +141,13 @@ images or reconstruct complex tables. Relative paths resolve from the project fo
 
 Citations identify the filename and physical PDF page, for example
 `[GitNotesForProfessionals.pdf p.83]`. These are PDF viewer pages, not printed page labels.
-The model receives a few relevant excerpts, not whole books. The app validates
+The model receives a few relevant excerpts, not whole books.
+If the model's answer fails verification, the app retries once with simpler
+instructions and the same passages. If that also fails, it says passages were
+found but the answer could not be verified. Use `/sources` to read them, or
+`--debug --prompt "YOUR QUESTION"` to inspect raw model output. This is distinct
+from finding no passages at all. A small model can still decline answerable questions.
+The app validates
 evidence quotes and adds citations from exact source IDs, preventing confusion
 between identical page numbers in different books. Code snippets must occur in
 the retrieved text. PDF typography and whitespace are normalized during validation.

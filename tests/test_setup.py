@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+from unittest.mock import Mock
 import sys
 import subprocess
 import os
@@ -13,6 +14,7 @@ import shutil
 
 from langchain_core.messages import AIMessage
 import devknowledgeai.__main__ as app
+from devknowledgeai.rag import Passage
 
 spec = importlib.util.spec_from_file_location('project_setup', Path(__file__).resolve().parents[1] / 'setup.py')
 bootstrap = importlib.util.module_from_spec(spec)
@@ -20,6 +22,21 @@ spec.loader.exec_module(bootstrap)
 
 
 class SetupTests(unittest.TestCase):
+    def test_grounded_answer_recovers_after_invalid_evidence(self):
+        passages = [Passage(1, 592, 'Threads can simultaneously share data.', 0.8, 'CSharp.pdf')]
+        valid = json.dumps({'supported': True, 'answer': 'Threads can share data.', 'evidence': [{'source_id': 'S1', 'quote': passages[0].text}]})
+        model = Mock()
+        model.invoke.side_effect = [AIMessage(content='{"supported":false}'), AIMessage(content=valid)]
+        self.assertIn('[CSharp.pdf p.592]', app.grounded_answer(model, 'Threading in C#', passages))
+        self.assertEqual(2, model.invoke.call_count)
+
+    def test_grounded_answer_distinguishes_unverified_answer_from_missing_sources(self):
+        passages = [Passage(1, 592, 'Threads can simultaneously share data.', 0.8, 'CSharp.pdf')]
+        model = Mock()
+        model.invoke.return_value = AIMessage(content='{"supported":false}')
+        self.assertEqual(app.UNVERIFIED, app.grounded_answer(model, 'Threading in C#', passages))
+        self.assertEqual(2, model.invoke.call_count)
+
     def test_environment_uses_defaults_when_template_is_missing(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(bootstrap, 'ROOT', Path(folder)):
             bootstrap.ensure_environment()

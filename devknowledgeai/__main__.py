@@ -26,6 +26,23 @@ Use code snippets or commands only when they occur in the supplied excerpts. Do 
 Include evidence for every claim. Quotes must be at least 12 characters.
 Page numbers refer to PDF viewer pages, not the book's printed page numbers.
 Never invent quotes, citations or facts. Return only the JSON object.'''
+UNVERIFIED = "I found PDF passages, but couldn't verify the model's answer. Use /sources to inspect them or ask a more specific question."
+
+
+def grounded_answer(llm, question, passages, history=(), debug=False):
+    payload = json.dumps({"question": question, "excerpts": [{"source_id": f"S{n}", "book": p.source, "pdf_page": p.page, "text": p.text} for n, p in enumerate(passages, start=1)]}, ensure_ascii=False)
+    messages = [SystemMessage(content=POLICY), *history[-4:], HumanMessage(content=payload)]
+    for attempt in range(2):
+        reply = llm.invoke(messages)
+        answer = validate_answer(reply.content, passages)
+        if debug:
+            print(f"[debug] Attempt {attempt + 1}, verified={answer != ABSTAIN}, raw answer: {reply.content}", file=sys.stderr)
+        if answer != ABSTAIN:
+            return answer
+        # A small model may produce invalid JSON, an inaccurate quote, or an
+        # unsupported answer. Retry with the same sources and simpler guidance.
+        messages = [SystemMessage(content=POLICY), HumanMessage(content=payload), HumanMessage(content="The previous response did not pass evidence validation. Try a short answer using only these excerpts. Choose one or two short, exact quotes copied from the supplied text. Do not add code, citations, or facts absent from the excerpts. If they do not answer the question, set supported=false. Return the required JSON object.")]
+    return UNVERIFIED
 
 
 def project_path(value):
@@ -54,6 +71,7 @@ def main():
     parser.add_argument("--rebuild", action="store_true", help="Rebuild the selected PDF's index")
     parser.add_argument("--chat", action="store_true", help="General local chat without PDF retrieval")
     parser.add_argument("--search-only", action="store_true", help="Show retrieved excerpts without generating an answer (requires --prompt)")
+    parser.add_argument("--debug", action="store_true", help="Show retrieved page IDs and raw model answers for diagnosing verification failures")
     args = parser.parse_args()
     if args.search_only and (not args.prompt or args.chat):
         parser.error("--search-only requires --prompt and PDF mode")
@@ -107,15 +125,15 @@ def main():
                 if history and len(question.split()) < 14 and any(word in question.lower().split() for word in ["it", "that", "those", "they", "this", "its"]):
                     search_question = history[-2].content + " " + question
                 last_sources = index.retrieve(search_question)
+                if args.debug:
+                    print("[debug] Retrieved: " + ", ".join(f"{p.source} p.{p.page}" for p in last_sources), file=sys.stderr)
                 if args.search_only:
                     show_sources(last_sources)
                     return 0
                 if not last_sources:
                     answer = ABSTAIN
                 else:
-                    payload = json.dumps({"question": question, "excerpts": [{"source_id": f"S{n}", "book": p.source, "pdf_page": p.page, "text": p.text} for n, p in enumerate(last_sources, start=1)]}, ensure_ascii=False)
-                    reply = llm.invoke([SystemMessage(content=POLICY), *history[-4:], HumanMessage(content=payload)])
-                    answer = validate_answer(reply.content, last_sources)
+                    answer = grounded_answer(llm, question, last_sources, history, args.debug)
                 print(f"Assistant: {answer}")
                 history.extend([HumanMessage(content=question), AIMessage(content=answer)])
             else:
