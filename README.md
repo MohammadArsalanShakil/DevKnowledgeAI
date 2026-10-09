@@ -147,9 +147,12 @@ instructions and the same passages. If that also fails, it says passages were
 found but the answer could not be verified. Use `/sources` to read them, or
 `--debug --prompt "YOUR QUESTION"` to inspect raw model output. This is distinct
 from finding no passages at all. A small model can still decline answerable questions.
-The app validates
-evidence quotes and adds citations from exact source IDs, preventing confusion
-between identical page numbers in different books. Code snippets must occur in
+The app assigns IDs to exact evidence blocks and uses a JSON schema to constrain
+the model's selection to those IDs. It resolves selected blocks to the original
+PDF text, filename, and page rather than requiring the model to copy quotes.
+It verifies the resolved quotes and adds citations, preventing confusion between
+identical page numbers in different books. Selection does not prove that a block
+supports every generated claim. Code snippets must occur in
 the retrieved text. PDF typography and whitespace are normalized during validation.
 Unsupported or unverified answers are declined. These checks do not prove that
 every generated claim is correct; use `/sources` to inspect important answers.

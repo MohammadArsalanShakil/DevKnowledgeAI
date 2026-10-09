@@ -24,7 +24,7 @@ spec.loader.exec_module(bootstrap)
 class SetupTests(unittest.TestCase):
     def test_grounded_answer_recovers_after_invalid_evidence(self):
         passages = [Passage(1, 592, 'Threads can simultaneously share data.', 0.8, 'CSharp.pdf')]
-        valid = json.dumps({'supported': True, 'answer': 'Threads can share data.', 'evidence': [{'source_id': 'S1', 'quote': passages[0].text}]})
+        valid = json.dumps({'supported': True, 'answer': 'Threads can share data.', 'evidence_ids': ['E1']})
         model = Mock()
         model.invoke.side_effect = [AIMessage(content='{"supported":false}'), AIMessage(content=valid)]
         self.assertIn('[CSharp.pdf p.592]', app.grounded_answer(model, 'Threading in C#', passages))
@@ -36,6 +36,19 @@ class SetupTests(unittest.TestCase):
         model.invoke.return_value = AIMessage(content='{"supported":false}')
         self.assertEqual(app.UNVERIFIED, app.grounded_answer(model, 'Threading in C#', passages))
         self.assertEqual(2, model.invoke.call_count)
+
+    def test_evidence_ids_resolve_to_the_original_book_and_page(self):
+        passages = [Passage(1, 592, 'Threads can share data.', 0.8, 'CSharp.pdf'), Passage(1, 42, 'Git tracks source changes.', 0.8, 'Git.pdf')]
+        blocks = app.evidence_blocks(passages)
+        raw = json.dumps({'supported': True, 'answer': 'Git tracks changes.', 'evidence_ids': ['E2']})
+        self.assertEqual('Git tracks changes. [Git.pdf p.42]', app.resolve_evidence(raw, blocks, passages))
+
+    def test_unknown_evidence_ids_and_invented_commands_still_fail(self):
+        passages = [Passage(1, 42, 'Use psql -l to list databases.', 0.8, 'PostgreSQL.pdf')]
+        blocks = app.evidence_blocks(passages)
+        for answer, ids in [('A claim.', ['E999']), ('Use `SHOW DATABASES`.', ['E1']), ('A claim.', [])]:
+            raw = json.dumps({'supported': True, 'answer': answer, 'evidence_ids': ids})
+            self.assertEqual(app.ABSTAIN, app.resolve_evidence(raw, blocks, passages))
 
     def test_environment_uses_defaults_when_template_is_missing(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(bootstrap, 'ROOT', Path(folder)):
