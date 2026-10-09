@@ -6,7 +6,7 @@ Example after publishing: .\install.ps1 -RepositoryUrl https://github.com/OWNER/
 [CmdletBinding()]
 param(
     [string]$RepositoryUrl,
-    [string]$Destination = (Join-Path $HOME 'repos\DevKnowledgeAI'),
+    [string]$Destination = (Join-Path (Get-Location).Path 'DevKnowledgeAI'),
     [string]$Branch,
     [switch]$InstallPrerequisites,
     [switch]$DownloadBooks,
@@ -94,7 +94,7 @@ try {
         if (-not $git) { throw 'Git installed but could not be located. Open a new PowerShell window and rerun.' }
     }
     if ($RepositoryUrl) {
-        $destinationPath = [IO.Path]::GetFullPath($Destination)
+        $destinationPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Destination)
         if (Test-Path -LiteralPath $destinationPath) {
             if (-not (Test-Path -LiteralPath (Join-Path $destinationPath '.git'))) { throw 'Destination exists and is not a Git checkout. Choose another -Destination.' }
             $origin = & $git.Source -C $destinationPath remote get-url origin

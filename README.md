@@ -205,7 +205,11 @@ bash ./install.sh --repository-url https://github.com/OWNER/REPO --install-prere
 ```
 
 These URLs are placeholders. The repository URL and default branch
-are needed to form the final remote one-command installer. No URL is hardcoded here.
+are needed for the remote one-command installer. By default, the bootstraps clone
+into `DevKnowledgeAI` inside the folder where you run the command. Specify
+`-Destination PATH` (Windows) or `--destination PATH` (Linux/macOS) to override it.
+Relative destinations resolve from your terminal's current folder.
+No URL is hardcoded here.
 An existing checkout is reused only if its origin matches; local changes are not pulled over.
 
 No project license has been selected yet. Dependencies have separate licenses;

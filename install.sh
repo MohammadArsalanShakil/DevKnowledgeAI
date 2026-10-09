@@ -2,7 +2,7 @@
 # macOS/Linux bootstrap; works with macOS's Bash 3.2 and newer Bash.
 set -euo pipefail
 fail() { printf 'Setup failed: %s\n' "$*" >&2; exit 1; }
-repository='' destination="${HOME}/repos/DevKnowledgeAI" branch=''
+repository='' destination="$(pwd)/DevKnowledgeAI" branch=''
 install_prerequisites=0 check_only=0 skip_models=0
 setup_args=()
 while [ "$#" -gt 0 ]; do
