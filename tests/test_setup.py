@@ -20,6 +20,25 @@ spec.loader.exec_module(bootstrap)
 
 
 class SetupTests(unittest.TestCase):
+    def test_environment_uses_defaults_when_template_is_missing(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(bootstrap, 'ROOT', Path(folder)):
+            bootstrap.ensure_environment()
+            self.assertEqual(bootstrap.DEFAULT_ENV, (Path(folder) / '.env').read_text())
+
+    def test_environment_preserves_existing_user_settings(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(bootstrap, 'ROOT', Path(folder)):
+            env = Path(folder) / '.env'
+            env.write_text('OLLAMA_MODEL=custom-model\n')
+            bootstrap.ensure_environment()
+            self.assertEqual('OLLAMA_MODEL=custom-model\n', env.read_text())
+
+    def test_environment_repairs_empty_file_from_failed_setup(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(bootstrap, 'ROOT', Path(folder)):
+            env = Path(folder) / '.env'
+            env.touch()
+            bootstrap.ensure_environment()
+            self.assertEqual(bootstrap.DEFAULT_ENV, env.read_text())
+
     def test_ollama_unix_installers_use_official_script(self):
         for platform in ('linux', 'darwin'):
             with self.subTest(platform=platform), patch.object(bootstrap.urllib.request, 'urlopen', return_value=io.BytesIO(b'official installer')), patch.object(bootstrap, 'run') as run:

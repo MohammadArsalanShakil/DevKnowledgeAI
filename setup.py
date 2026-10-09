@@ -18,6 +18,23 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parent
 BASE_URL = "http://localhost:11434"
+DEFAULT_ENV = """OLLAMA_MODEL=qwen3:1.7b
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_EMBEDDING_MODEL=all-minilm
+RAG_PDF_DIR=data/documents
+"""
+
+
+def ensure_environment():
+    env_path = ROOT / ".env"
+    if env_path.exists() and env_path.stat().st_size:
+        return
+    template = ROOT / ".env.example"
+    content = template.read_text(encoding="utf-8-sig") if template.is_file() else DEFAULT_ENV
+    # Read the template before opening the destination. An earlier failed setup
+    # may have left an empty .env; repair only that case, preserving user settings.
+    with env_path.open("w" if env_path.exists() else "x", encoding="utf-8") as handle:
+        handle.write(content)
 
 
 def run(command, **kwargs):
@@ -180,10 +197,7 @@ def main():
     run([interpreter, "-c", "import sys; assert sys.version_info >= (3,12), 'Existing venv needs Python 3.12+'"])
     run([interpreter, "-m", "pip", "install", "-r", ROOT / "requirements.lock.txt"])
     run([interpreter, "-m", "pip", "check"])
-    env_path = ROOT / ".env"
-    if not env_path.exists():
-        with env_path.open("x", encoding="utf-8") as handle:
-            handle.write((ROOT / ".env.example").read_text(encoding="utf-8-sig"))
+    ensure_environment()
     prepare_books(args.books_dir, args.download_books)
     if not args.skip_models:
         ollama = find_ollama()

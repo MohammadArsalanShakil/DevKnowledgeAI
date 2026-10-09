@@ -62,6 +62,8 @@ py setup.py --install-ollama --run
 ```
 
 Setup preserves an existing `.env` and creates one from `.env.example` if absent.
+If a web upload omitted `.env.example`, setup uses built-in local defaults.
+It also repairs an empty `.env` left by a previously interrupted setup.
 It prefers an installed Python 3.12 interpreter and otherwise uses Python 3.12+.
 Set `DEVKNOWLEDGEAI_PYTHON` to an interpreter's absolute path to select it explicitly.
 If WinGet or another system prerequisite is unavailable, the installer reports it.
